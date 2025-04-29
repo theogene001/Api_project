@@ -9,20 +9,21 @@ const port = 3000;
 // Middleware to parse JSON
 app.use(express.json());
 
-// MySQL database connection
+// MySQL database connection (Clever Cloud)
 const connection = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: '',
-  database: 'api'
+  host: 'bzoccoyvcelmuj6doqsw-mysql.services.clever-cloud.com',
+  user: 'uurywbnne2uqfjyw',
+  password: 'HIAqJ6dEJjsy92OuRHeC',
+  database: 'bzoccoyvcelmuj6doqsw',
+  port: 3306
 });
 
 connection.connect((err) => {
   if (err) {
-    console.error('Database connection failed:', err.stack);
+    console.error('❌ Database connection failed:', err.stack);
     return;
   }
-  console.log('✅ Connected to the api database.');
+  console.log('✅ Connected to Clever Cloud MySQL database.');
 });
 
 // JWT Middleware
@@ -30,10 +31,10 @@ function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
-  if (!token) return res.sendStatus(401); // Unauthorized
+  if (!token) return res.sendStatus(401);
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403); // Forbidden
+    if (err) return res.sendStatus(403);
     req.user = user;
     next();
   });
@@ -49,21 +50,12 @@ app.post('/signup', (req, res) => {
 
   const checkQuery = 'SELECT * FROM users WHERE username = ?';
   connection.query(checkQuery, [username], (err, results) => {
-    if (err) {
-      console.error('Error checking user:', err.message);
-      return res.status(500).send('Server error');
-    }
-
-    if (results.length > 0) {
-      return res.status(409).send('Username already exists');
-    }
+    if (err) return res.status(500).send('Server error');
+    if (results.length > 0) return res.status(409).send('Username already exists');
 
     const insertQuery = 'INSERT INTO users (username, password) VALUES (?, ?)';
     connection.query(insertQuery, [username, password], (err, result) => {
-      if (err) {
-        console.error('Error inserting user:', err.message);
-        return res.status(500).send('Failed to create user');
-      }
+      if (err) return res.status(500).send('Failed to create user');
 
       const user = { user_id: result.insertId, username };
       const token = jwt.sign(user, process.env.JWT_SECRET, { expiresIn: '1h' });
@@ -82,14 +74,8 @@ app.post('/login', (req, res) => {
 
   const query = 'SELECT * FROM users WHERE username = ? AND password = ?';
   connection.query(query, [username, password], (err, results) => {
-    if (err) {
-      console.error('Error querying database:', err.message);
-      return res.status(500).send('Server error');
-    }
-
-    if (results.length === 0) {
-      return res.status(401).send('Invalid credentials');
-    }
+    if (err) return res.status(500).send('Server error');
+    if (results.length === 0) return res.status(401).send('Invalid credentials');
 
     const user = results[0];
     const token = jwt.sign({ user_id: user.user_id, username: user.username }, process.env.JWT_SECRET, {
@@ -104,10 +90,7 @@ app.post('/login', (req, res) => {
 app.get('/products', authenticateToken, (req, res) => {
   const query = 'SELECT * FROM products';
   connection.query(query, (err, results) => {
-    if (err) {
-      console.error('Error fetching products:', err);
-      return res.status(500).send('Failed to retrieve products');
-    }
+    if (err) return res.status(500).send('Failed to retrieve products');
     res.json(results);
   });
 });
@@ -125,10 +108,7 @@ app.post('/products', authenticateToken, (req, res) => {
     VALUES (?, ?, ?, ?)
   `;
   connection.query(query, [productName, description, quantity, price], (err, results) => {
-    if (err) {
-      console.error('Error inserting product:', err);
-      return res.status(500).send('Failed to add product');
-    }
+    if (err) return res.status(500).send('Failed to add product');
     res.status(201).json({ message: 'Product added successfully', productID: results.insertId });
   });
 });
@@ -148,13 +128,8 @@ app.put('/products/:id', authenticateToken, (req, res) => {
     WHERE productID = ?
   `;
   connection.query(query, [productName, description, quantity, price, productID], (err, results) => {
-    if (err) {
-      console.error('Error updating product:', err);
-      return res.status(500).send('Failed to update product');
-    }
-    if (results.affectedRows === 0) {
-      return res.status(404).send('Product not found');
-    }
+    if (err) return res.status(500).send('Failed to update product');
+    if (results.affectedRows === 0) return res.status(404).send('Product not found');
     res.send('Product updated successfully');
   });
 });
@@ -173,15 +148,9 @@ app.patch('/products/:id', authenticateToken, (req, res) => {
   const values = keys.map(key => fields[key]);
 
   const query = `UPDATE products SET ${setClause} WHERE productID = ?`;
-
   connection.query(query, [...values, productID], (err, results) => {
-    if (err) {
-      console.error('Error partially updating product:', err);
-      return res.status(500).send('Failed to update product');
-    }
-    if (results.affectedRows === 0) {
-      return res.status(404).send('Product not found');
-    }
+    if (err) return res.status(500).send('Failed to update product');
+    if (results.affectedRows === 0) return res.status(404).send('Product not found');
     res.send('Product updated successfully (partial)');
   });
 });
@@ -191,13 +160,8 @@ app.delete('/products/:id', authenticateToken, (req, res) => {
   const productID = req.params.id;
   const query = 'DELETE FROM products WHERE productID = ?';
   connection.query(query, [productID], (err, results) => {
-    if (err) {
-      console.error('Error deleting product:', err);
-      return res.status(500).send('Failed to delete product');
-    }
-    if (results.affectedRows === 0) {
-      return res.status(404).send('Product not found');
-    }
+    if (err) return res.status(500).send('Failed to delete product');
+    if (results.affectedRows === 0) return res.status(404).send('Product not found');
     res.send('Product deleted successfully');
   });
 });
