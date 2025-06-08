@@ -1,21 +1,25 @@
 const express = require('express');
+const cors = require('cors');              // <-- Import cors
 const mysql = require('mysql2');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const app = express();
-const port = 3000;
+
+const port = process.env.PORT || 3000;
+
+app.use(cors());                          // <-- Enable CORS for all origins
 
 // Middleware to parse JSON
 app.use(express.json());
 
-// MySQL database connection (Clever Cloud)
+// MySQL database connection using environment variables
 const connection = mysql.createConnection({
-  host: 'bzoccoyvcelmuj6doqsw-mysql.services.clever-cloud.com',
-  user: 'uurywbnne2uqfjyw',
-  password: 'HIAqJ6dEJjsy92OuRHeC',
-  database: 'bzoccoyvcelmuj6doqsw',
-  port: 3306
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT
 });
 
 connection.connect((err) => {
