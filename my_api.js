@@ -1,19 +1,18 @@
 const express = require('express');
-const cors = require('cors');              // <-- Import cors
+const cors = require('cors');              // <-- Import CORS
 const mysql = require('mysql2');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const app = express();
-
 const port = process.env.PORT || 3000;
 
-app.use(cors());                          // <-- Enable CORS for all origins
+// ===== MIDDLEWARES =====
+app.use(cors());                           // <-- Enable CORS for all origins
+app.use(express.json());                   // <-- To parse application/json
+app.use(express.urlencoded({ extended: true })); // <-- To parse application/x-www-form-urlencoded
 
-// Middleware to parse JSON
-app.use(express.json());
-
-// MySQL database connection using environment variables
+// ===== MYSQL DATABASE CONNECTION =====
 const connection = mysql.createConnection({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -30,7 +29,7 @@ connection.connect((err) => {
   console.log('✅ Connected to Clever Cloud MySQL database.');
 });
 
-// JWT Middleware
+// ===== JWT MIDDLEWARE =====
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -44,7 +43,7 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// SIGNUP - Register new user
+// ===== SIGNUP =====
 app.post('/signup', (req, res) => {
   const { username, password } = req.body;
 
@@ -68,7 +67,7 @@ app.post('/signup', (req, res) => {
   });
 });
 
-// LOGIN - Authenticate user
+// ===== LOGIN =====
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
 
@@ -90,7 +89,7 @@ app.post('/login', (req, res) => {
   });
 });
 
-// GET all products
+// ===== PRODUCTS ROUTES =====
 app.get('/products', authenticateToken, (req, res) => {
   const query = 'SELECT * FROM products';
   connection.query(query, (err, results) => {
@@ -99,7 +98,6 @@ app.get('/products', authenticateToken, (req, res) => {
   });
 });
 
-// POST - Add a new product
 app.post('/products', authenticateToken, (req, res) => {
   const { productName, description, quantity, price } = req.body;
 
@@ -117,7 +115,6 @@ app.post('/products', authenticateToken, (req, res) => {
   });
 });
 
-// PUT - Full update product
 app.put('/products/:id', authenticateToken, (req, res) => {
   const productID = req.params.id;
   const { productName, description, quantity, price } = req.body;
@@ -138,7 +135,6 @@ app.put('/products/:id', authenticateToken, (req, res) => {
   });
 });
 
-// PATCH - Partial update product
 app.patch('/products/:id', authenticateToken, (req, res) => {
   const productID = req.params.id;
   const fields = req.body;
@@ -159,7 +155,6 @@ app.patch('/products/:id', authenticateToken, (req, res) => {
   });
 });
 
-// DELETE - Remove product
 app.delete('/products/:id', authenticateToken, (req, res) => {
   const productID = req.params.id;
   const query = 'DELETE FROM products WHERE productID = ?';
@@ -170,7 +165,7 @@ app.delete('/products/:id', authenticateToken, (req, res) => {
   });
 });
 
-// Start the server
+// ===== START SERVER =====
 app.listen(port, () => {
   console.log(`🚀 Server is running at http://localhost:${port}`);
 });
