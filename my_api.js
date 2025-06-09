@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt'); // For password hashing
+
 require('dotenv').config();
 
 const app = express();
@@ -43,8 +43,8 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// ===== SIGNUP =====
-app.post('/signup', async (req, res) => {
+// ===== SIGNUP (No Hashing) =====
+app.post('/signup', (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
@@ -52,13 +52,12 @@ app.post('/signup', async (req, res) => {
   }
 
   const checkQuery = 'SELECT * FROM users WHERE username = ?';
-  connection.query(checkQuery, [username], async (err, results) => {
+  connection.query(checkQuery, [username], (err, results) => {
     if (err) return res.status(500).send('Server error');
     if (results.length > 0) return res.status(409).send('Username already exists');
 
-    const hashedPassword = await bcrypt.hash(password, 10);
     const insertQuery = 'INSERT INTO users (username, password) VALUES (?, ?)';
-    connection.query(insertQuery, [username, hashedPassword], (err, result) => {
+    connection.query(insertQuery, [username, password], (err, result) => {
       if (err) return res.status(500).send('Failed to create user');
 
       const user = { user_id: result.insertId, username };
@@ -68,7 +67,7 @@ app.post('/signup', async (req, res) => {
   });
 });
 
-// ===== LOGIN =====
+// ===== LOGIN (Plain Text) =====
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
 
@@ -77,13 +76,15 @@ app.post('/login', (req, res) => {
   }
 
   const query = 'SELECT * FROM users WHERE username = ?';
-  connection.query(query, [username], async (err, results) => {
+  connection.query(query, [username], (err, results) => {
     if (err) return res.status(500).send('Server error');
     if (results.length === 0) return res.status(401).send('Invalid credentials');
 
     const user = results[0];
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) return res.status(401).send('Invalid credentials');
+
+    if (password !== user.password) {
+      return res.status(401).send('Invalid credentials');
+    }
 
     const token = jwt.sign({ user_id: user.user_id, username: user.username }, process.env.JWT_SECRET, {
       expiresIn: '1h'
